@@ -10,6 +10,10 @@
  */
 #include <Arduino.h>
 
+#include <SoftwareSerial.h>
+
+SoftwareSerial mySerial(4, 5); // RX, TX
+
 // Motor steps per revolution. Most steppers are 200 steps or 1.8 degrees/step
 /* Old code
 #define MOTOR_STEPS 200
@@ -77,7 +81,7 @@ String incomingString = "";                         // a string for incoming tex
 
 void displayParameters()
 {
-  
+
   Serial.println ("Current parameter values:");
   Serial.print ("RPM = ");
   Serial.println (RPM);
@@ -87,30 +91,33 @@ void displayParameters()
   Serial.println (deg);
   Serial.print ("INTERVAL = ");
   Serial.println (INTERVAL);
-  
+
 }
 
 
-void updateParameters() 
+void updateParameters()
 {
   while (Serial.available()) {
-    incomingString = Serial.readStringUntil('\n'); // read the incoming byte:
+    incomingString = Serial.readString(); // read the incoming byte:
+  }
+
+  while (mySerial.available()) {
+    incomingString = mySerial.readString(); // read the incoming byte:
   }
 
   Serial.print(" I received:");
-  
+  incomingString.trim();
   Serial.println(incomingString);
 
 
   String values[ 10 ] ; // values is an array of 10 strings
 
 
-  
+
   if (incomingString.startsWith("~") and incomingString.endsWith("|")) {
 
       stepper.disable();
-    
-      incomingString.trim();
+
       incomingString = incomingString.substring(1, incomingString.length()-1);
 
       /************ Spliting incoming string and loading into array 'values' ************/
@@ -119,43 +126,43 @@ void updateParameters()
         i = incomingString.indexOf(':');
         values[j] = incomingString.substring( 0, i );
         incomingString = incomingString.substring( i+1 , incomingString.length() );
-      }   
+      }
       /**********************************************************************************/
- 
-  
 
-      // output each array element's value 
+
+
+      // output each array element's value
       /*
-      for ( int j = 0; j < 10 and values[j] != "" ; ++j ) {                  
+      for ( int j = 0; j < 10 and values[j] != "" ; ++j ) {
           Serial.print (values[j]) ;
           Serial.println (j) ;
-      } 
+      }
       */
-    
+
       /**************** Initializing parameter using array **********************/
       RPM = values[0].toInt();
       ROTATIONS = values[1].toInt();
       INTERVAL = values[2].toInt();
-    
-    
+
+
       String dir_str = values[3];
       dir_str.toLowerCase();
       //Serial.println(str.indexOf("clock"));
       //Serial.println(str);
-    
+
       if ( dir_str.indexOf("clock") > -1 )
         ;
       else if ( dir_str.indexOf("anti") > -1 )
         ROTATIONS = 0-ROTATIONS;
       /**************************************************************************/
-    
-    
+
+
       /*********** In case of wrong input initializing default values ***********/
       if ( RPM <= 0 or ROTATIONS == 0 or INTERVAL < 0) {
         // Assigning default values
         Serial.println ('Assigning default values');
         RPM=200; // Rotations per minute (Speed of motor)
-        ROTATIONS=1; // Number of rotations 
+        ROTATIONS=1; // Number of rotations
         INTERVAL = 5000; // Delay after n number of rotations (mS) (Where n = ROTATIONS)
       }
       /**************************************************************************/
@@ -172,13 +179,18 @@ void updateParameters()
 
 void setup() {
 
-    Serial.begin(115200);               // opens serial port, sets data rate to 115200 bps   
+    Serial.begin(115200);               // opens serial port, sets data rate to 115200 bps
+
+    mySerial.begin(9600);
 
     displayParameters();
-    
+
     if (Serial.available())
       updateParameters();
-    
+
+    if (mySerial.available())
+      updateParameters();
+
     stepper.begin(RPM);
     stepper.enable();
 
@@ -201,7 +213,10 @@ void loop() {
 
     if (Serial.available())
       updateParameters();
-    
+
+    if (mySerial.available())
+      updateParameters();
+
     delay(INTERVAL);
 
 
